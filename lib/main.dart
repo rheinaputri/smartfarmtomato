@@ -1,6 +1,8 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 import 'auth/home_screen.dart';
 import 'auth/signin_screen.dart';
@@ -10,6 +12,7 @@ import 'navigation/farmer_navigation.dart';
 import 'screens/farmer/dashboard/farmer_dashboard.dart';
 import 'app_user.dart';
 import 'core/firebase_options.dart';
+import 'providers/theme_provider.dart'; // Import yang benar
 
 bool _isInitialized = false;
 
@@ -83,15 +86,22 @@ class _TomaFarmAppState extends State<TomaFarmApp> {
           return ErrorApp(error: snapshot.error.toString());
         }
 
-        return MaterialApp(
-          title: 'TomaFarm',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-            useMaterial3: true,
-            visualDensity: VisualDensity.adaptivePlatformDensity,
+        return MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (context) => ThemeProvider()),
+          ],
+          child: Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return MaterialApp(
+                title: 'TomaFarm',
+                theme: themeProvider.currentTheme,
+                darkTheme: ThemeProvider.darkTheme,
+                themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+                home: const AuthWrapper(),
+                debugShowCheckedModeBanner: false,
+              );
+            },
           ),
-          home: const AuthWrapper(),
-          debugShowCheckedModeBanner: false,
         );
       },
     );
@@ -277,16 +287,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Widget _buildQuickLoadingScreen() {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const CircularProgressIndicator(color: Colors.green),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Loading...',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 14, 
+                color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6)
+              ),
             ),
           ],
         ),

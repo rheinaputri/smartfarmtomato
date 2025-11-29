@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+// ignore: depend_on_referenced_packages
+import 'package:provider/provider.dart';
 import '../screens/admin/dashboard/admin_dashboard.dart';
+import '../screens/admin/settings/admin_settings.dart';
+import '../providers/theme_provider.dart';
 
 class AdminNavigation extends StatefulWidget {
   const AdminNavigation({super.key});
@@ -16,14 +20,15 @@ class _AdminNavigationState extends State<AdminNavigation> {
     _buildPlaceholderScreen('Manajemen User'),
     _buildPlaceholderScreen('Manajemen Lahan'),
     _buildPlaceholderScreen('Kontrol Pompa'),
-    _buildPlaceholderScreen('Pengaturan Admin'),
+    const AdminSettingsScreen(),
   ];
+
+  // HAPUS BARIS INI: get Provider => null;
 
   static Widget _buildPlaceholderScreen(String title) {
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
-        backgroundColor: Colors.blue,
       ),
       body: Center(
         child: Column(
@@ -40,7 +45,6 @@ class _AdminNavigationState extends State<AdminNavigation> {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.blue,
               ),
             ),
             const SizedBox(height: 8),
@@ -59,6 +63,8 @@ class _AdminNavigationState extends State<AdminNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -69,9 +75,9 @@ class _AdminNavigationState extends State<AdminNavigation> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).cardColor,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         items: const [
           BottomNavigationBarItem(
