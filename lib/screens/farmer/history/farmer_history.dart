@@ -12,13 +12,12 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  // PERBAIKAN: Gunakan FirebaseDatabase.instance.ref() saja tanpa instanceFor
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   
   List<LogEntry> _logs = [];
-  String _selectedFilter = '24jam';
   bool _isLoading = true;
   bool _hasError = false;
+  String _selectedFilter = '24jam'; // Filter default
 
   @override
   void initState() {
@@ -29,8 +28,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _loadLogs() {
     print('🔄 Loading logs from Firebase...');
     
-    // PERBAIKAN: Gunakan once() untuk sekali baca data, bukan realtime listener
-    _databaseRef.child('history_data').orderByChild('timestamp').once().then((DatabaseEvent event) {
+    _databaseRef.child('history_data').once().then((DatabaseEvent event) {
       try {
         final data = event.snapshot.value;
         final List<LogEntry> logs = [];
@@ -42,32 +40,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (value is Map) {
               print('🔍 Processing log entry: $key');
               
-              logs.add(LogEntry(
-                id: key.toString(),
-                timestamp: _parseTimestamp(value['timestamp']),
-                action: _generateActionText(value),
-                type: 'sensor',
-                temperature: _toDouble(value['suhu']),
-                humidity: _toDouble(value['kelembaban_udara']),
-                soilMoisture: _toDouble(value['kelembaban_tanah']),
-                value: _toDouble(value['kecerahan']),
-                unit: '%',
-                brightness: _toDouble(value['kecerahan']),
-                soilCategory: value['kategori_tanah']?.toString(),
-                lightCategory: value['kategori_cahaya']?.toString(),
-                operationMode: value['mode_operasi']?.toString(),
-                pumpStatus: value['status_pompa']?.toString(),
-                temperatureStatus: value['status_suhu']?.toString(),
-                humidityStatus: value['status_kelembaban']?.toString(),
-                plantStage: value['tahapan_tanaman']?.toString(),
-                plantAge: _toDouble(value['umur_tanaman']),
-                timeOfDay: value['waktu']?.toString(),
-              ));
+              try {
+                // Gunakan key sebagai timestamp utama
+                final int timestamp = _parseKeyToTimestamp(key.toString());
+                
+                logs.add(LogEntry(
+                  id: key.toString(),
+                  timestamp: timestamp,
+                  action: _generateActionText(value),
+                  type: 'sensor',
+                  temperature: _toDouble(value['suhu']),
+                  humidity: _toDouble(value['kelembaban_udara']),
+                  soilMoisture: _toDouble(value['kelembaban_tanah']),
+                  value: _toDouble(value['kecerahan']),
+                  unit: '%',
+                  brightness: _toDouble(value['kecerahan']),
+                  soilCategory: value['kategori_tanah']?.toString(),
+                  lightCategory: value['kategori_cahaya']?.toString(),
+                  operationMode: value['mode_operasi']?.toString(),
+                  pumpStatus: value['status_pompa']?.toString(),
+                  temperatureStatus: value['status_suhu']?.toString(),
+                  humidityStatus: value['status_kelembaban']?.toString(),
+                  plantStage: value['tahapan_tanaman']?.toString(),
+                  plantAge: _toDouble(value['umur_tanaman']),
+                  timeOfDay: value['waktu']?.toString(),
+                  datetime: value['datetime']?.toString(),
+                ));
+              } catch (e) {
+                print('❌ Error processing entry $key: $e');
+              }
             }
           });
         }
 
-        // Sort by timestamp descending
+        // Sort by timestamp descending (terbaru di atas) berdasarkan key
         logs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
         print('✅ Successfully loaded ${logs.length} logs');
@@ -93,37 +99,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  int _parseTimestamp(dynamic timestamp) {
-    if (timestamp == null) {
-      return DateTime.now().millisecondsSinceEpoch;
-    }
-    
-    if (timestamp is int) {
-      // PERBAIKAN: Handle timestamp yang kecil (dalam detik)
-      if (timestamp < 10000000000) {
-        return timestamp * 1000;
+  // Fungsi untuk parsing key menjadi timestamp
+  int _parseKeyToTimestamp(String key) {
+    try {
+      // Key adalah millis() dari Arduino, langsung konversi ke int
+      final millis = int.tryParse(key);
+      if (millis != null) {
+        return millis;
       }
-      return timestamp;
+    } catch (e) {
+      print('❌ Error parsing key $key: $e');
     }
     
-    if (timestamp is String) {
-      final parsed = int.tryParse(timestamp);
-      if (parsed != null) {
-        if (parsed < 10000000000) {
-          return parsed * 1000;
-        }
-        return parsed;
-      }
-    }
-    
+    // Fallback: gunakan waktu sekarang
     return DateTime.now().millisecondsSinceEpoch;
   }
 
   String _generateActionText(Map<dynamic, dynamic> data) {
     final plantStage = data['tahapan_tanaman']?.toString() ?? 'Tanaman';
     final soilCategory = data['kategori_tanah']?.toString() ?? '';
+    final mode = data['mode_operasi']?.toString() ?? 'AUTO';
     
-    return 'Monitoring $plantStage - Tanah: $soilCategory';
+    return '$plantStage - $soilCategory ($mode)';
   }
 
   double? _toDouble(dynamic value) {
@@ -207,6 +204,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return themeProvider.isDarkMode ? Colors.grey.shade800 : Colors.green.shade50;
   }
 
+  String _buildDetailedSensorDataText(LogEntry log) {
+    final parts = <String>[];
+    
+    if (log.temperature != null) parts.add('Suhu: ${log.temperature!.toStringAsFixed(1)}°C');
+    if (log.humidity != null) parts.add('Udara: ${log.humidity!.toStringAsFixed(1)}%');
+    if (log.soilMoisture != null) parts.add('Tanah: ${log.soilMoisture!.toStringAsFixed(1)}%');
+    if (log.brightness != null) parts.add('Cahaya: ${log.brightness!.toStringAsFixed(1)}%');
+    
+    return parts.join(' • ');
+  }
+
   void _refreshData() {
     setState(() {
       _isLoading = true;
@@ -223,7 +231,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          '📊 Riwayat Monitoring',
+          '📊 Riwayat Monitoring 2025',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -349,7 +357,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -491,7 +498,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildLogItem(LogEntry log, BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final date = DateTime.fromMillisecondsSinceEpoch(log.timestamp);
-    final timeFormat = DateFormat('HH:mm');
+    final timeFormat = DateFormat('HH:mm:ss');
     final dateFormat = DateFormat('dd/MM/yyyy');
     final isToday = DateFormat('yyyyMMdd').format(date) == DateFormat('yyyyMMdd').format(DateTime.now());
 
@@ -513,10 +520,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
+          // Icon dengan status
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: _getLogColor(log.type, context).withOpacity(0.2),
               shape: BoxShape.circle,
@@ -557,19 +565,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
                 
-                const SizedBox(height: 4),
-                
                 // Status tambahan
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: _buildStatusChips(log, context),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: _buildStatusChips(log, context),
+                  ),
                 ),
+                
+                // Tampilkan datetime asli dari Firebase jika ada
+                if (log.datetime != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Waktu: ${log.datetime}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: themeProvider.isDarkMode ? Colors.grey.shade500 : Colors.grey,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
-          // Time
+          // Time Section
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -581,7 +602,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   color: themeProvider.isDarkMode ? Colors.white : Colors.black87,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 isToday ? 'Hari Ini' : dateFormat.format(date),
                 style: TextStyle(
@@ -641,8 +662,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     }
-    
-    if (log.plantStage != null) {
+
+    if (log.timeOfDay != null) {
       chips.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -651,7 +672,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
-            log.plantStage!,
+            log.timeOfDay!,
             style: TextStyle(
               fontSize: 10,
               color: themeProvider.isDarkMode ? Colors.purple.shade300 : Colors.purple.shade700,
@@ -670,24 +691,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         return Colors.red;
       case 'KERING':
         return Colors.orange;
-      case 'IDEAL':
+      case 'LEMBAB':
         return Colors.green;
       case 'BASAH':
         return Colors.blue;
       default:
         return Colors.grey;
     }
-  }
-
-  String _buildDetailedSensorDataText(LogEntry log) {
-    final parts = <String>[];
-    
-    if (log.temperature != null) parts.add('🌡 ${log.temperature!.toStringAsFixed(1)}°C');
-    if (log.humidity != null) parts.add('💧 ${log.humidity!.toStringAsFixed(1)}%');
-    if (log.soilMoisture != null) parts.add('🌱 ${log.soilMoisture!.toStringAsFixed(1)}%');
-    if (log.brightness != null) parts.add('💡 ${log.brightness!.toStringAsFixed(1)}%');
-    
-    return parts.isNotEmpty ? parts.join(' • ') : 'Data sensor';
   }
 
   Widget _buildLoadingState(BuildContext context) {
@@ -830,6 +840,7 @@ class LogEntry {
   final String? plantStage;
   final double? plantAge;
   final String? timeOfDay;
+  final String? datetime;
 
   LogEntry({
     required this.id,
@@ -851,5 +862,6 @@ class LogEntry {
     this.plantStage,
     this.plantAge,
     this.timeOfDay,
+    this.datetime,
   });
 }
