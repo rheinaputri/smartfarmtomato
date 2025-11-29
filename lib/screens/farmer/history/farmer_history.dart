@@ -10,11 +10,9 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  // PERBAIKAN: Gunakan FirebaseDatabase.instance.ref() saja tanpa instanceFor
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   
   List<LogEntry> _logs = [];
-  String _selectedFilter = '24jam';
   bool _isLoading = true;
   bool _hasError = false;
 
@@ -27,8 +25,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void _loadLogs() {
     print('🔄 Loading logs from Firebase...');
     
-    // PERBAIKAN: Gunakan once() untuk sekali baca data, bukan realtime listener
-    _databaseRef.child('history_data').orderByChild('timestamp').once().then((DatabaseEvent event) {
+    // PERBAIKAN: Mengambil data berdasarkan key (millis) bukan berdasarkan timestamp field
+    _databaseRef.child('history_data').once().then((DatabaseEvent event) {
       try {
         final data = event.snapshot.value;
         final List<LogEntry> logs = [];
@@ -40,32 +38,40 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (value is Map) {
               print('🔍 Processing log entry: $key');
               
-              logs.add(LogEntry(
-                id: key.toString(),
-                timestamp: _parseTimestamp(value['timestamp']),
-                action: _generateActionText(value),
-                type: 'sensor',
-                temperature: _toDouble(value['suhu']),
-                humidity: _toDouble(value['kelembaban_udara']),
-                soilMoisture: _toDouble(value['kelembaban_tanah']),
-                value: _toDouble(value['kecerahan']),
-                unit: '%',
-                brightness: _toDouble(value['kecerahan']),
-                soilCategory: value['kategori_tanah']?.toString(),
-                lightCategory: value['kategori_cahaya']?.toString(),
-                operationMode: value['mode_operasi']?.toString(),
-                pumpStatus: value['status_pompa']?.toString(),
-                temperatureStatus: value['status_suhu']?.toString(),
-                humidityStatus: value['status_kelembaban']?.toString(),
-                plantStage: value['tahapan_tanaman']?.toString(),
-                plantAge: _toDouble(value['umur_tanaman']),
-                timeOfDay: value['waktu']?.toString(),
-              ));
+              try {
+                // PERBAIKAN: Gunakan key sebagai timestamp utama
+                final int timestamp = _parseKeyToTimestamp(key.toString());
+                
+                logs.add(LogEntry(
+                  id: key.toString(),
+                  timestamp: timestamp,
+                  action: _generateActionText(value),
+                  type: 'sensor',
+                  temperature: _toDouble(value['suhu']),
+                  humidity: _toDouble(value['kelembaban_udara']),
+                  soilMoisture: _toDouble(value['kelembaban_tanah']),
+                  value: _toDouble(value['kecerahan']),
+                  unit: '%',
+                  brightness: _toDouble(value['kecerahan']),
+                  soilCategory: value['kategori_tanah']?.toString(),
+                  lightCategory: value['kategori_cahaya']?.toString(),
+                  operationMode: value['mode_operasi']?.toString(),
+                  pumpStatus: value['status_pompa']?.toString(),
+                  temperatureStatus: value['status_suhu']?.toString(),
+                  humidityStatus: value['status_kelembaban']?.toString(),
+                  plantStage: value['tahapan_tanaman']?.toString(),
+                  plantAge: _toDouble(value['umur_tanaman']),
+                  timeOfDay: value['waktu']?.toString(),
+                  datetime: value['datetime']?.toString(),
+                ));
+              } catch (e) {
+                print('❌ Error processing entry $key: $e');
+              }
             }
           });
         }
 
-        // Sort by timestamp descending
+        // PERBAIKAN: Sort by timestamp descending (terbaru di atas) berdasarkan key
         logs.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
         print('✅ Successfully loaded ${logs.length} logs');
@@ -91,13 +97,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
+  // PERBAIKAN: Fungsi untuk parsing key menjadi timestamp
+  int _parseKeyToTimestamp(String key) {
+    try {
+      // Key adalah millis() dari Arduino, langsung konversi ke int
+      final millis = int.tryParse(key);
+      if (millis != null) {
+        return millis;
+      }
+    } catch (e) {
+      print('❌ Error parsing key $key: $e');
+    }
+    
+    // Fallback: gunakan waktu sekarang
+    return DateTime.now().millisecondsSinceEpoch;
+  }
+
   int _parseTimestamp(dynamic timestamp) {
     if (timestamp == null) {
       return DateTime.now().millisecondsSinceEpoch;
     }
     
     if (timestamp is int) {
-      // PERBAIKAN: Handle timestamp yang kecil (dalam detik)
       if (timestamp < 10000000000) {
         return timestamp * 1000;
       }
@@ -112,6 +133,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
         return parsed;
       }
+      
+      try {
+        final dateTime = DateTime.tryParse(timestamp);
+        if (dateTime != null) {
+          return dateTime.millisecondsSinceEpoch;
+        }
+      } catch (e) {
+        print('❌ Error parsing datetime string: $e');
+      }
     }
     
     return DateTime.now().millisecondsSinceEpoch;
@@ -120,8 +150,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String _generateActionText(Map<dynamic, dynamic> data) {
     final plantStage = data['tahapan_tanaman']?.toString() ?? 'Tanaman';
     final soilCategory = data['kategori_tanah']?.toString() ?? '';
+    final mode = data['mode_operasi']?.toString() ?? 'AUTO';
     
-    return 'Monitoring $plantStage - Tanah: $soilCategory';
+    return '$plantStage - $soilCategory ($mode)';
   }
 
   double? _toDouble(dynamic value) {
@@ -135,74 +166,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return null;
   }
 
-  List<LogEntry> _getFilteredLogs() {
-    final now = DateTime.now();
-    final cutoff = _getCutoffTime(now);
-
-    return _logs.where((log) {
-      final logTime = DateTime.fromMillisecondsSinceEpoch(log.timestamp);
-      return logTime.isAfter(cutoff);
-    }).toList();
-  }
-
-  DateTime _getCutoffTime(DateTime now) {
-    switch (_selectedFilter) {
-      case '1jam':
-        return now.subtract(const Duration(hours: 1));
-      case '6jam':
-        return now.subtract(const Duration(hours: 6));
-      case '24jam':
-        return now.subtract(const Duration(days: 1)); // 1 hari
-      case '2hari':
-        return now.subtract(const Duration(days: 2));
-      case '3hari':
-        return now.subtract(const Duration(days: 3));
-      case '7hari':
-        return now.subtract(const Duration(days: 7));
-      case '1bulan':
-        return now.subtract(const Duration(days: 30));
-      case 'semua':
-        return DateTime(1970); // Semua data
-      default:
-        return now.subtract(const Duration(days: 1));
-    }
-  }
-
-  String _getFilterDisplayName(String filter) {
-    switch (filter) {
-      case '1jam':
-        return '1 Jam';
-      case '6jam':
-        return '6 Jam';
-      case '24jam':
-        return '1 Hari';
-      case '2hari':
-        return '2 Hari';
-      case '3hari':
-        return '3 Hari';
-      case '7hari':
-        return '7 Hari';
-      case '1bulan':
-        return '1 Bulan';
-      case 'semua':
-        return 'Semua';
-      default:
-        return '1 Hari';
-    }
-  }
-
-  IconData _getLogIcon(String type, String action) {
-    return Icons.sensors; // Icon default untuk semua data sensor
-  }
-
-  Color _getLogColor(String type) {
-    return Colors.green; // Warna hijau untuk data sensor
-  }
-
-  Color _getLogBackgroundColor(String type) {
-    return Colors.green.shade50;
-  }
-
   void _refreshData() {
     setState(() {
       _isLoading = true;
@@ -213,12 +176,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredLogs = _selectedFilter == 'semua' ? _logs : _getFilteredLogs();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          '📊 Riwayat Monitoring',
+          '📊 Riwayat Monitoring 2025',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 20,
@@ -243,64 +204,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFFE8F5E8), Color(0xFFC8E6C9)],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.analytics, color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Data History SmartFarm',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${filteredLogs.length} data monitoring ditemukan',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.green.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildHeader(),
               const SizedBox(height: 20),
 
-              // Time Filter dengan lebih banyak pilihan
-              _buildTimeFilter(),
+              // Summary Cards
+              _buildSummaryCards(),
               const SizedBox(height: 20),
 
               // Content
@@ -309,9 +217,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     ? _buildLoadingState()
                     : _hasError
                         ? _buildErrorState()
-                        : filteredLogs.isEmpty
+                        : _logs.isEmpty
                             ? _buildEmptyState()
-                            : _buildLogList(filteredLogs),
+                            : _buildLogList(),
               ),
             ],
           ),
@@ -320,9 +228,83 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildTimeFilter() {
-    // PERBAIKAN: Tambahkan lebih banyak pilihan filter waktu
-    final filters = ['1jam', '6jam', '24jam', '2hari', '3hari', '7hari', '1bulan', 'semua'];
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE8F5E8), Color(0xFFC8E6C9)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.analytics, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Data History SmartFarm Tomat 2025',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_logs.length} data monitoring ditemukan',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tahapan: ${_getCurrentPlantStage()}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.calendar_today, color: Colors.green, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryCards() {
+    final drySoilCount = _logs.where((log) => log.soilCategory == 'SANGAT KERING' || log.soilCategory == 'KERING').length;
+    final pumpOnCount = _logs.where((log) => log.pumpStatus == 'ON').length;
+    final autoModeCount = _logs.where((log) => log.operationMode == 'AUTO').length;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -338,14 +320,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.filter_alt, color: Colors.green, size: 18),
+              Icon(Icons.insights, color: Colors.green, size: 18),
               SizedBox(width: 8),
               Text(
-                'Filter Waktu',
+                'Ringkasan Data',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -354,99 +335,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: filters.map((filter) {
-                final isActive = _selectedFilter == filter;
-                return FilterChip(
-                  label: Text(_getFilterDisplayName(filter)),
-                  selected: isActive,
-                  onSelected: (selected) {
-                    setState(() {
-                      _selectedFilter = filter;
-                    });
-                  },
-                  backgroundColor: Colors.grey.shade100,
-                  selectedColor: Colors.green,
-                  labelStyle: TextStyle(
-                    color: isActive ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  checkmarkColor: Colors.white,
-                );
-              }).toList(),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSummaryCard('Total Data', _logs.length.toString(), Icons.list, Colors.blue),
+              _buildSummaryCard('Tanah Kering', drySoilCount.toString(), Icons.grass, Colors.orange),
+              _buildSummaryCard('Pompa ON', pumpOnCount.toString(), Icons.water_drop, Colors.blue),
+              _buildSummaryCard('Auto Mode', autoModeCount.toString(), Icons.smart_toy, Colors.green),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLogList(List<LogEntry> logs) {
-    return Column(
-      children: [
-        // Summary Cards
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade100),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildSummaryItem('Total', logs.length.toString(), Icons.list, Colors.blue),
-              _buildSummaryItem(
-                'Tanah Kering', 
-                logs.where((log) => log.soilCategory == 'SANGAT KERING' || log.soilCategory == 'KERING').length.toString(), 
-                Icons.grass, 
-                Colors.orange
-              ),
-              _buildSummaryItem(
-                'Pompa ON', 
-                logs.where((log) => log.pumpStatus == 'ON').length.toString(), 
-                Icons.water_drop, 
-                Colors.blue
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // List
-        Expanded(
-          child: ListView.separated(
-            itemCount: logs.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final log = logs[index];
-              return _buildLogItem(log);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSummaryItem(String title, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(String title, String value, IconData icon, Color color) {
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: color.withOpacity(0.1),
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Icon(icon, size: 16, color: color),
         ),
@@ -470,16 +380,74 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _buildLogList() {
+    return Column(
+      children: [
+        // List Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.green.shade100),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.history, size: 16, color: Colors.green),
+              const SizedBox(width: 8),
+              const Text(
+                'Riwayat Monitoring',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'Total: ${_logs.length}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.green,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // List
+        Expanded(
+          child: ListView.separated(
+            itemCount: _logs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final log = _logs[index];
+              return _buildLogItem(log);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLogItem(LogEntry log) {
     final date = DateTime.fromMillisecondsSinceEpoch(log.timestamp);
-    final timeFormat = DateFormat('HH:mm');
+    final timeFormat = DateFormat('HH:mm:ss'); // PERBAIKAN: tambah detik
     final dateFormat = DateFormat('dd/MM/yyyy');
     final isToday = DateFormat('yyyyMMdd').format(date) == DateFormat('yyyyMMdd').format(DateTime.now());
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _getLogBackgroundColor(log.type),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.green.shade50,
+            Colors.blue.shade50,
+          ],
+        ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -489,23 +457,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
         border: Border.all(
-          color: _getLogColor(log.type).withOpacity(0.3),
+          color: Colors.green.withOpacity(0.3),
           width: 1,
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
+          // Icon dengan status
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _getLogColor(log.type).withOpacity(0.2),
+              color: _getStatusColor(log),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              _getLogIcon(log.type, log.action),
-              color: _getLogColor(log.type),
-              size: 20,
+              _getStatusIcon(log),
+              color: Colors.white,
+              size: 18,
             ),
           ),
           const SizedBox(width: 12),
@@ -515,57 +484,97 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  log.action,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    height: 1.3,
-                  ),
-                ),
-                
-                // Data sensor
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    _buildDetailedSensorDataText(log),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                      fontWeight: FontWeight.w500,
+                // Header dengan tahapan tanaman
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        log.plantStage ?? 'Tanaman',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.purple.shade700,
+                        ),
+                      ),
                     ),
-                  ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: log.operationMode == 'AUTO' ? Colors.blue.shade50 : Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Mode: ${log.operationMode ?? 'AUTO'}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: log.operationMode == 'AUTO' ? Colors.blue.shade700 : Colors.orange.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                
-                const SizedBox(height: 4),
-                
+                const SizedBox(height: 8),
+
+                // Data sensor utama
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  children: _buildSensorData(log),
+                ),
+                const SizedBox(height: 8),
+
                 // Status tambahan
                 Wrap(
                   spacing: 6,
                   runSpacing: 4,
                   children: _buildStatusChips(log),
                 ),
+                
+                // PERBAIKAN: Tampilkan datetime asli dari Firebase jika ada
+                if (log.datetime != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Waktu: ${log.datetime}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
 
-          // Time
+          // Time Section
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                timeFormat.format(date),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isToday ? Colors.green.shade100 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  timeFormat.format(date),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isToday ? Colors.green.shade800 : Colors.grey.shade800,
+                  ),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 isToday ? 'Hari Ini' : dateFormat.format(date),
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: Colors.grey.shade600,
                 ),
               ),
@@ -573,6 +582,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  List<Widget> _buildSensorData(LogEntry log) {
+    return [
+      if (log.temperature != null)
+        _buildSensorItem('🌡', '${log.temperature!.toStringAsFixed(1)}°C', Colors.red),
+      if (log.humidity != null)
+        _buildSensorItem('💧', '${log.humidity!.toStringAsFixed(1)}%', Colors.blue),
+      if (log.soilMoisture != null)
+        _buildSensorItem('🌱', '${log.soilMoisture!.toStringAsFixed(1)}%', Colors.green),
+      if (log.brightness != null)
+        _buildSensorItem('💡', '${log.brightness!.toStringAsFixed(1)}%', Colors.orange),
+    ];
+  }
+
+  Widget _buildSensorItem(String icon, String value, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(icon, style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 
@@ -616,20 +656,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       );
     }
-    
-    if (log.plantStage != null) {
+
+    if (log.timeOfDay != null) {
       chips.add(
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: Colors.purple.shade50,
+            color: log.timeOfDay == 'Siang' ? Colors.orange.shade50 : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
-            log.plantStage!,
+            log.timeOfDay!,
             style: TextStyle(
               fontSize: 10,
-              color: Colors.purple.shade700,
+              color: log.timeOfDay == 'Siang' ? Colors.orange.shade700 : Colors.blue.shade700,
             ),
           ),
         ),
@@ -639,13 +679,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return chips;
   }
 
+  Color _getStatusColor(LogEntry log) {
+    if (log.pumpStatus == 'ON') return Colors.green;
+    if (log.soilCategory == 'SANGAT KERING') return Colors.red;
+    if (log.soilCategory == 'KERING') return Colors.orange;
+    return Colors.blue;
+  }
+
+  IconData _getStatusIcon(LogEntry log) {
+    if (log.pumpStatus == 'ON') return Icons.water_drop;
+    if (log.soilCategory == 'SANGAT KERING') return Icons.warning;
+    return Icons.sensors;
+  }
+
   Color _getSoilColor(String soilCategory) {
     switch (soilCategory) {
       case 'SANGAT KERING':
         return Colors.red;
       case 'KERING':
         return Colors.orange;
-      case 'IDEAL':
+      case 'LEMBAB':
         return Colors.green;
       case 'BASAH':
         return Colors.blue;
@@ -654,15 +707,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  String _buildDetailedSensorDataText(LogEntry log) {
-    final parts = <String>[];
-    
-    if (log.temperature != null) parts.add('🌡 ${log.temperature!.toStringAsFixed(1)}°C');
-    if (log.humidity != null) parts.add('💧 ${log.humidity!.toStringAsFixed(1)}%');
-    if (log.soilMoisture != null) parts.add('🌱 ${log.soilMoisture!.toStringAsFixed(1)}%');
-    if (log.brightness != null) parts.add('💡 ${log.brightness!.toStringAsFixed(1)}%');
-    
-    return parts.isNotEmpty ? parts.join(' • ') : 'Data sensor';
+  String _getCurrentPlantStage() {
+    if (_logs.isEmpty) return 'Tidak ada data';
+    final latestLog = _logs.first;
+    return latestLog.plantStage ?? 'Unknown';
   }
 
   Widget _buildLoadingState() {
@@ -683,7 +731,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Memuat data monitoring...',
+            'Memuat data monitoring 2025...',
             style: TextStyle(
               fontSize: 16,
               color: Colors.green,
@@ -799,6 +847,7 @@ class LogEntry {
   final String? plantStage;
   final double? plantAge;
   final String? timeOfDay;
+  final String? datetime;
 
   LogEntry({
     required this.id,
@@ -820,5 +869,6 @@ class LogEntry {
     this.plantStage,
     this.plantAge,
     this.timeOfDay,
+    this.datetime,
   });
 }
