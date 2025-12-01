@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:smartfarmtomato/providers/theme_provider.dart';
 import 'admin_notifications.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -296,11 +298,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildNotificationsSheet() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       height: MediaQuery.of(context).size.height * 0.8,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(20),
           topRight: Radius.circular(20),
         ),
@@ -311,11 +315,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Text(
+                Text(
                   '🔔 Notifikasi Sistem',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onBackground,
                   ),
                 ),
                 const Spacer(),
@@ -327,11 +332,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         _unreadNotifications = 0;
                       });
                     },
-                    child: const Text('Tandai Semua Dibaca'),
+                    child: Text(
+                      'Tandai Semua Dibaca',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
                   ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
+                  icon: Icon(
+                    Icons.close,
+                    color: Theme.of(context).colorScheme.onBackground,
+                  ),
                 ),
               ],
             ),
@@ -343,19 +356,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   : Stream.value([]),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  );
                 }
                 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.notifications_none, size: 60, color: Colors.grey),
-                        SizedBox(height: 16),
+                        Icon(
+                          Icons.notifications_none, 
+                          size: 60, 
+                          color: Theme.of(context).colorScheme.onBackground.withOpacity(0.5),
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           'Tidak ada notifikasi',
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                          ),
                         ),
                       ],
                     ),
@@ -379,14 +402,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildNotificationItem(AdminNotificationItem notification) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: notification.isRead ? Colors.grey[50] : Colors.blue[50],
+        color: notification.isRead 
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: notification.isRead ? Colors.grey[200]! : Colors.blue[200]!,
+          color: notification.isRead 
+              ? Theme.of(context).colorScheme.outline.withOpacity(0.2)
+              : Theme.of(context).colorScheme.primary.withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -413,17 +442,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   style: TextStyle(
                     fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
                     fontSize: 14,
+                    color: Theme.of(context).colorScheme.onBackground,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   notification.message,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 12, 
+                    color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   notification.formattedTime,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 10, 
+                    color: Theme.of(context).colorScheme.onBackground.withOpacity(0.5),
+                  ),
                 ),
               ],
             ),
@@ -432,7 +468,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.red,
                 shape: BoxShape.circle,
               ),
@@ -444,40 +480,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.background,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(color: Colors.blue),
+              CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.admin_panel_settings,
                   size: 50,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'TomaFarm Admin',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Memuat dashboard...',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 14, 
+                  color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6),
+                ),
               ),
             ],
           ),
@@ -486,7 +527,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
@@ -496,6 +537,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             await Future.delayed(const Duration(seconds: 1));
             _initializeDashboard();
           },
+          color: Theme.of(context).colorScheme.primary,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
@@ -522,6 +564,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildHeader() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -535,16 +579,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     'Dashboard Administrator',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.grey[600],
+                      color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Smart Farming Management',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ],
@@ -557,10 +601,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   icon: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.notifications, color: Colors.blue),
+                    child: Icon(
+                      Icons.notifications, 
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
                 if (_unreadNotifications > 0 && _notificationsEnabled)
@@ -597,7 +644,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           'Overview sistem dan monitoring semua lahan tomat',
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[600],
+            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.6),
           ),
         ),
       ],
@@ -608,9 +655,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '📊 Statistik Sistem',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 18, 
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
         ),
         const SizedBox(height: 16),
         GridView.count(
@@ -629,7 +680,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _totalFarmers > 0 ? 'Aktif' : 'Tidak Ada',
               color: Colors.blue,
               statusColor: _totalFarmers > 0 ? Colors.green : Colors.grey,
-              backgroundColor: Colors.blue[50]!,
             ),
             _buildStatCard(
               icon: Icons.agriculture,
@@ -639,7 +689,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: 'Terdaftar',
               color: Colors.green,
               statusColor: Colors.green,
-              backgroundColor: Colors.green[50]!,
             ),
             _buildStatCard(
               icon: Icons.wifi,
@@ -649,7 +698,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _activeNodes == _totalLands ? 'Optimal' : 'Perhatian',
               color: Colors.purple,
               statusColor: _activeNodes == _totalLands ? Colors.green : Colors.orange,
-              backgroundColor: Colors.purple[50]!,
             ),
             _buildStatCard(
               icon: Icons.warning,
@@ -659,7 +707,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _criticalAlerts > 0 ? 'Perhatian' : 'Aman',
               color: Colors.red,
               statusColor: _criticalAlerts > 0 ? Colors.red : Colors.green,
-              backgroundColor: Colors.red[50]!,
             ),
           ],
         ),
@@ -675,21 +722,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required String status,
     required Color color,
     required Color statusColor,
-    required Color backgroundColor,
   }) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: themeProvider.isDarkMode 
+            ? color.withOpacity(0.1)
+            : color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: themeProvider.isDarkMode 
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,7 +789,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -780,9 +832,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           '🌡️ Data Sensor Rata-rata',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 18, 
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onBackground,
+          ),
         ),
         const SizedBox(height: 16),
         GridView.count(
@@ -801,7 +857,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _getStatusMessage('temperature', _overallSensorData['temperature']),
               color: Colors.red,
               statusColor: _getStatusColor('temperature', _overallSensorData['temperature']),
-              backgroundColor: Colors.red[50]!,
             ),
             _buildSensorCard(
               icon: Icons.water_drop,
@@ -811,7 +866,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _getStatusMessage('humidity', _overallSensorData['humidity']),
               color: Colors.blue,
               statusColor: _getStatusColor('humidity', _overallSensorData['humidity']),
-              backgroundColor: Colors.blue[50]!,
             ),
             _buildSensorCard(
               icon: Icons.grass,
@@ -821,7 +875,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _getStatusMessage('soilMoisture', _overallSensorData['soilMoisture']),
               color: Colors.brown,
               statusColor: _getStatusColor('soilMoisture', _overallSensorData['soilMoisture']),
-              backgroundColor: Colors.brown[50]!,
             ),
             _buildSensorCard(
               icon: Icons.light_mode,
@@ -831,7 +884,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               status: _getStatusMessage('lightIntensity', _overallSensorData['lightIntensity']),
               color: Colors.amber,
               statusColor: _getStatusColor('lightIntensity', _overallSensorData['lightIntensity']),
-              backgroundColor: Colors.amber[50]!,
             ),
           ],
         ),
@@ -847,21 +899,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required String status,
     required Color color,
     required Color statusColor,
-    required Color backgroundColor,
   }) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: themeProvider.isDarkMode 
+            ? color.withOpacity(0.1)
+            : color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: themeProvider.isDarkMode 
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -909,7 +966,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.grey[700],
+              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -949,33 +1006,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildSystemStatus() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: themeProvider.isDarkMode 
+            ? Colors.blue.withOpacity(0.1)
+            : Colors.blue[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: themeProvider.isDarkMode 
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.engineering, color: Colors.blue),
-              SizedBox(width: 8),
+              Icon(Icons.engineering, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
               Text(
                 'Status Sistem',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
@@ -989,7 +1052,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 status: _systemStatus['pump'] ? 'ON' : 'OFF',
                 statusColor: _systemStatus['pump'] ? Colors.green : Colors.red,
                 mode: _systemStatus['autoMode'] ? 'Auto' : 'Manual',
-                backgroundColor: Colors.blue[50]!,
               ),
               const SizedBox(width: 12),
               _buildSystemItem(
@@ -998,7 +1060,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 status: _systemStatus['light'] ? 'ON' : 'OFF',
                 statusColor: _systemStatus['light'] ? Colors.green : Colors.red,
                 mode: _systemStatus['autoMode'] ? 'Auto' : 'Manual',
-                backgroundColor: Colors.amber[50]!,
               ),
               const SizedBox(width: 12),
               _buildSystemItem(
@@ -1007,7 +1068,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 status: _systemStatus['autoMode'] ? 'Auto' : 'Manual',
                 statusColor: _systemStatus['autoMode'] ? Colors.blue : Colors.orange,
                 mode: 'Aktif',
-                backgroundColor: Colors.purple[50]!,
               ),
             ],
           ),
@@ -1022,22 +1082,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     required String status,
     required Color statusColor,
     required String mode,
-    required Color backgroundColor,
   }) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: backgroundColor,
+          color: themeProvider.isDarkMode 
+              ? statusColor.withOpacity(0.1)
+              : statusColor.withOpacity(0.05),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: statusColor.withOpacity(0.3)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 2,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          boxShadow: themeProvider.isDarkMode 
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
         ),
         child: Column(
           children: [
@@ -1052,9 +1117,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.onBackground,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1071,7 +1137,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeProvider.isDarkMode 
+                    ? Colors.grey[800]!
+                    : Colors.white,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey.withOpacity(0.3)),
               ),
@@ -1091,33 +1159,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildRecentActivities() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.green[50],
+        color: themeProvider.isDarkMode 
+            ? Colors.green.withOpacity(0.1)
+            : Colors.green[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.green.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: themeProvider.isDarkMode 
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.history, color: Colors.green),
-              SizedBox(width: 8),
+              Icon(Icons.history, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
               Text(
                 'Aktivitas Terbaru',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
@@ -1130,11 +1204,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildActivityItem(Map<String, dynamic> activity) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeProvider.isDarkMode 
+            ? Colors.grey[800]
+            : Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.withOpacity(0.2)),
       ),
@@ -1155,21 +1233,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   activity['user'],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onBackground,
                   ),
                 ),
                 Text(
                   activity['action'],
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 12, 
+                    color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                  ),
                 ),
               ],
             ),
           ),
           Text(
             activity['time'],
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 10, 
+              color: Theme.of(context).colorScheme.onBackground.withOpacity(0.5),
+            ),
           ),
         ],
       ),
@@ -1177,48 +1262,60 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildSystemAlerts() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
+        color: themeProvider.isDarkMode 
+            ? Colors.orange.withOpacity(0.1)
+            : Colors.orange[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.orange.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: themeProvider.isDarkMode 
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.warning, color: Colors.orange),
-              SizedBox(width: 8),
+              Icon(Icons.warning, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
               Text(
                 'Alert Sistem',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.orange,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           _systemAlerts.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(16.0),
+              ? Padding(
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      Icon(Icons.check_circle, size: 40, color: Colors.green),
-                      SizedBox(height: 8),
+                      Icon(
+                        Icons.check_circle, 
+                        size: 40, 
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 8),
                       Text(
                         'Tidak ada alert sistem',
-                        style: TextStyle(color: Colors.green),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ],
                   ),
@@ -1261,14 +1358,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   alert['title'],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onBackground,
                   ),
                 ),
                 Text(
                   alert['message'],
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 12, 
+                    color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+                  ),
                 ),
               ],
             ),

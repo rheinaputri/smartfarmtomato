@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:provider/provider.dart'; 
+import '../../../providers/theme_provider.dart'; 
 
 class ControlScreen extends StatefulWidget {
   const ControlScreen({super.key});
@@ -68,13 +70,15 @@ class _ControlScreenState extends State<ControlScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('🎮 Kontrol Aktuator'),
-        backgroundColor: Colors.green,
+        backgroundColor: themeProvider.isDarkMode ? Colors.green.shade800 : Colors.green,
         foregroundColor: Colors.white,
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: themeProvider.isDarkMode ? Colors.grey.shade900 : Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -86,20 +90,20 @@ class _ControlScreenState extends State<ControlScreen> {
                 'Kontrol manual pompa air dan lampu tumbuh',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey[600],
+                  color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey[600],
                 ),
               ),
               const SizedBox(height: 24),
 
-              _buildControlMode(),
+              _buildControlMode(context),
               const SizedBox(height: 24),
-              _buildPumpControl(),
+              _buildPumpControl(context),
               const SizedBox(height: 24),
-              _buildLightControl(),
+              _buildLightControl(context),
               const SizedBox(height: 24),
-              _buildSystemStatus(),
+              _buildSystemStatus(context),
               const SizedBox(height: 24),
-              _buildControlInfo(),
+              _buildControlInfo(context),
             ],
           ),
         ),
@@ -107,18 +111,24 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _buildControlMode() {
+  Widget _buildControlMode(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: _autoMode ? Colors.green[50]! : Colors.blue[50]!,
+        color: _autoMode 
+          ? (themeProvider.isDarkMode ? Colors.green.shade900.withOpacity(0.3) : Colors.green[50]!)
+          : (themeProvider.isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue[50]!),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _autoMode ? Colors.green.withOpacity(0.3) : Colors.blue.withOpacity(0.3),
+          color: _autoMode 
+            ? Colors.green.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+            : Colors.blue.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -129,7 +139,9 @@ class _ControlScreenState extends State<ControlScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _autoMode ? Colors.green.withOpacity(0.2) : Colors.blue.withOpacity(0.2),
+              color: _autoMode 
+                ? Colors.green.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2)
+                : Colors.blue.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -158,7 +170,7 @@ class _ControlScreenState extends State<ControlScreen> {
                     : 'Kontrol manual diaktifkan - Anda dapat mengontrol pompa dan lampu',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey[600],
                   ),
                 ),
               ],
@@ -175,16 +187,20 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _buildPumpControl() {
+  Widget _buildPumpControl(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.blue[50]!,
+        color: themeProvider.isDarkMode ? Colors.blue.shade900.withOpacity(0.3) : Colors.blue[50]!,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(
+          color: Colors.blue.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -198,18 +214,18 @@ class _ControlScreenState extends State<ControlScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.2),
+                  color: Colors.blue.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.water_drop, color: Colors.blue, size: 28),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 '💧 Kontrol Pompa Air',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: themeProvider.isDarkMode ? Colors.blue.shade300 : Colors.blue,
                 ),
               ),
             ],
@@ -224,7 +240,9 @@ class _ControlScreenState extends State<ControlScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _pumpStatus ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                        color: _pumpStatus 
+                          ? Colors.green.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.1)
+                          : Colors.red.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _pumpStatus ? Colors.green : Colors.red,
@@ -246,7 +264,7 @@ class _ControlScreenState extends State<ControlScreen> {
                         : 'Pompa dalam kondisi non-aktif',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey[600],
                       ),
                     ),
                   ],
@@ -257,11 +275,16 @@ class _ControlScreenState extends State<ControlScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: _autoMode ? Colors.grey[300] : (_pumpStatus ? Colors.green : Colors.red),
+                  color: _autoMode 
+                    ? Colors.grey.withOpacity(0.5)
+                    : (_pumpStatus ? Colors.green : Colors.red),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: (_autoMode ? Colors.grey : (_pumpStatus ? Colors.green : Colors.red)).withOpacity(0.3),
+                      color: (_autoMode 
+                        ? Colors.grey 
+                        : (_pumpStatus ? Colors.green : Colors.red)
+                      ).withOpacity(0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -283,20 +306,26 @@ class _ControlScreenState extends State<ControlScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange[50],
+                color: themeProvider.isDarkMode ? Colors.orange.shade900.withOpacity(0.3) : Colors.orange[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(
+                  color: Colors.orange.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.orange[700], size: 16),
+                  Icon(
+                    Icons.info, 
+                    color: themeProvider.isDarkMode ? Colors.orange.shade300 : Colors.orange[700], 
+                    size: 16
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Mode otomatis aktif - Kontrol manual dinonaktifkan',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.orange[700],
+                        color: themeProvider.isDarkMode ? Colors.orange.shade300 : Colors.orange[700],
                       ),
                     ),
                   ),
@@ -309,16 +338,20 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _buildLightControl() {
+  Widget _buildLightControl(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.amber[50]!,
+        color: themeProvider.isDarkMode ? Colors.amber.shade900.withOpacity(0.3) : Colors.amber[50]!,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.amber.withOpacity(0.3)),
+        border: Border.all(
+          color: Colors.amber.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -332,18 +365,18 @@ class _ControlScreenState extends State<ControlScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.2),
+                  color: Colors.amber.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.lightbulb, color: Colors.amber, size: 28),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 '💡 Kontrol Lampu Tumbuh',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.amber,
+                  color: themeProvider.isDarkMode ? Colors.amber.shade300 : Colors.amber,
                 ),
               ),
             ],
@@ -358,7 +391,9 @@ class _ControlScreenState extends State<ControlScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _lightStatus ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                        color: _lightStatus 
+                          ? Colors.green.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.1)
+                          : Colors.red.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: _lightStatus ? Colors.green : Colors.red,
@@ -380,7 +415,7 @@ class _ControlScreenState extends State<ControlScreen> {
                         : 'Lampu dalam kondisi non-aktif',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey[600],
                       ),
                     ),
                   ],
@@ -391,11 +426,16 @@ class _ControlScreenState extends State<ControlScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: _autoMode ? Colors.grey[300] : (_lightStatus ? Colors.green : Colors.red),
+                  color: _autoMode 
+                    ? Colors.grey.withOpacity(0.5)
+                    : (_lightStatus ? Colors.green : Colors.red),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: (_autoMode ? Colors.grey : (_lightStatus ? Colors.green : Colors.red)).withOpacity(0.3),
+                      color: (_autoMode 
+                        ? Colors.grey 
+                        : (_lightStatus ? Colors.green : Colors.red)
+                      ).withOpacity(0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -417,20 +457,26 @@ class _ControlScreenState extends State<ControlScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange[50],
+                color: themeProvider.isDarkMode ? Colors.orange.shade900.withOpacity(0.3) : Colors.orange[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                border: Border.all(
+                  color: Colors.orange.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info, color: Colors.orange[700], size: 16),
+                  Icon(
+                    Icons.info, 
+                    color: themeProvider.isDarkMode ? Colors.orange.shade300 : Colors.orange[700], 
+                    size: 16
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Mode otomatis aktif - Kontrol manual dinonaktifkan',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.orange[700],
+                        color: themeProvider.isDarkMode ? Colors.orange.shade300 : Colors.orange[700],
                       ),
                     ),
                   ),
@@ -443,16 +489,20 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _buildSystemStatus() {
+  Widget _buildSystemStatus(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.purple[50]!,
+        color: themeProvider.isDarkMode ? Colors.purple.shade900.withOpacity(0.3) : Colors.purple[50]!,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+        border: Border.all(
+          color: Colors.purple.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -461,12 +511,12 @@ class _ControlScreenState extends State<ControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '📊 Status Sistem',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Colors.purple,
+              color: themeProvider.isDarkMode ? Colors.purple.shade300 : Colors.purple,
             ),
           ),
           const SizedBox(height: 16),
@@ -477,6 +527,7 @@ class _ControlScreenState extends State<ControlScreen> {
                 Icons.wifi,
                 Colors.green,
                 'Aktif',
+                context,
               ),
               const SizedBox(width: 12),
               _buildStatusIndicator(
@@ -484,6 +535,7 @@ class _ControlScreenState extends State<ControlScreen> {
                 Icons.storage,
                 Colors.green,
                 'Online',
+                context,
               ),
               const SizedBox(width: 12),
               _buildStatusIndicator(
@@ -491,6 +543,7 @@ class _ControlScreenState extends State<ControlScreen> {
                 Icons.sensors,
                 Colors.green,
                 'Aktif',
+                context,
               ),
               const SizedBox(width: 12),
               _buildStatusIndicator(
@@ -498,6 +551,7 @@ class _ControlScreenState extends State<ControlScreen> {
                 Icons.engineering,
                 _autoMode ? Colors.green : Colors.blue,
                 _autoMode ? 'Auto' : 'Manual',
+                context,
               ),
             ],
           ),
@@ -506,21 +560,23 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _buildStatusIndicator(String label, IconData icon, Color color, String status) {
+  Widget _buildStatusIndicator(String label, IconData icon, Color color, String status, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withOpacity(themeProvider.isDarkMode ? 0.2 : 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)),
         ),
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withOpacity(themeProvider.isDarkMode ? 0.3 : 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 20),
@@ -528,9 +584,10 @@ class _ControlScreenState extends State<ControlScreen> {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
+                color: themeProvider.isDarkMode ? Colors.white : Colors.black,
               ),
               textAlign: TextAlign.center,
             ),
@@ -549,16 +606,20 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  Widget _buildControlInfo() {
+  Widget _buildControlInfo(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.grey[50]!,
+        color: themeProvider.isDarkMode ? Colors.grey.shade800 : Colors.grey[50]!,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.3)),
+        border: Border.all(
+          color: Colors.grey.withOpacity(themeProvider.isDarkMode ? 0.5 : 0.3)
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withOpacity(themeProvider.isDarkMode ? 0.2 : 0.1),
             blurRadius: 2,
             offset: const Offset(0, 1),
           ),
@@ -567,16 +628,19 @@ class _ControlScreenState extends State<ControlScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.help, color: Colors.grey),
-              SizedBox(width: 8),
+              Icon(
+                Icons.help, 
+                color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey
+              ),
+              const SizedBox(width: 8),
               Text(
                 'ℹ️ Informasi Kontrol',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey,
                 ),
               ),
             ],
@@ -584,21 +648,26 @@ class _ControlScreenState extends State<ControlScreen> {
           const SizedBox(height: 12),
           _buildInfoItem(
             'Mode Otomatis: Sistem akan mengontrol pompa dan lampu secara otomatis berdasarkan data sensor',
+            context,
           ),
           const SizedBox(height: 8),
           _buildInfoItem(
             'Mode Manual: Anda dapat mengontrol pompa dan lampu secara manual melalui tombol kontrol',
+            context,
           ),
           const SizedBox(height: 8),
           _buildInfoItem(
             'Status real-time: Semua perubahan status akan langsung terlihat di dashboard',
+            context,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoItem(String text) {
+  Widget _buildInfoItem(String text, BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -606,8 +675,8 @@ class _ControlScreenState extends State<ControlScreen> {
           margin: const EdgeInsets.only(top: 4),
           width: 6,
           height: 6,
-          decoration: const BoxDecoration(
-            color: Colors.grey,
+          decoration: BoxDecoration(
+            color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey,
             shape: BoxShape.circle,
           ),
         ),
@@ -617,7 +686,7 @@ class _ControlScreenState extends State<ControlScreen> {
             text,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey[600],
+              color: themeProvider.isDarkMode ? Colors.grey.shade400 : Colors.grey[600],
             ),
           ),
         ),

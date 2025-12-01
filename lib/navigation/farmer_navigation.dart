@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../screens/farmer/dashboard/farmer_dashboard.dart';
 import '../screens/farmer/control/farmer_control.dart';
 import '../screens/farmer/history/farmer_history.dart';
 import '../screens/farmer/settings/farmer_settings.dart';
+import '../providers/theme_provider.dart';
 
 class FarmerNavigation extends StatefulWidget {
   const FarmerNavigation({super.key});
@@ -23,6 +25,8 @@ class _FarmerNavigationState extends State<FarmerNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -33,9 +37,9 @@ class _FarmerNavigationState extends State<FarmerNavigation> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).cardColor,
-        selectedItemColor: Colors.green,
-        unselectedItemColor: Colors.grey,
+        backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+        selectedItemColor: Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+        unselectedItemColor: Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         items: const [
           BottomNavigationBarItem(
