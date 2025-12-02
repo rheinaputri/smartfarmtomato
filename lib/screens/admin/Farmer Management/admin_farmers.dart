@@ -32,24 +32,19 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
 
       if (data != null) {
         data.forEach((key, value) {
+          // Hanya tampilkan user dengan role 'farmer'
           if (value['role'] == 'farmer') {
             farmers.add({
               'id': key,
-              'name': value['name'] ?? 'Unknown',
+              'name': value['name'] ?? value['displayName'] ?? 'Unknown',
               'email': value['email'] ?? '-',
             });
           }
         });
       }
 
-      // Add dummy farmers if none exist
-      if (farmers.isEmpty) {
-        farmers.addAll([
-          {'id': 'farmer1', 'name': 'Syafa', 'email': 'syafa@example.com'},
-          {'id': 'farmer2', 'name': 'Nadyne', 'email': 'nadyne@example.com'},
-          {'id': 'farmer3', 'name': 'April', 'email': 'april@example.com'},
-        ]);
-      }
+      // Urutkan berdasarkan nama
+      farmers.sort((a, b) => a['name'].compareTo(b['name']));
 
       setState(() {
         _farmers = farmers;
@@ -70,12 +65,6 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
     });
   }
 
-  void _showNotifications() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notifikasi: Tidak ada notifikasi baru')),
-    );
-  }
-
   void _addFarmer() {
     final TextEditingController nameController = TextEditingController();
     final TextEditingController emailController = TextEditingController();
@@ -90,15 +79,27 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Nama'),
+              decoration: const InputDecoration(
+                labelText: 'Nama Lengkap',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
               obscureText: true,
             ),
           ],
@@ -128,12 +129,26 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
                     'email': emailController.text,
                     'role': 'farmer',
                     'createdAt': DateTime.now().millisecondsSinceEpoch,
+                    'lastLogin': DateTime.now().millisecondsSinceEpoch,
+                    'status': 'active',
+                    'displayName': nameController.text,
                   });
 
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text('Petani berhasil ditambahkan')),
+                  );
+                } on FirebaseAuthException catch (e) {
+                  String errorMessage = 'Terjadi kesalahan';
+                  if (e.code == 'email-already-in-use') {
+                    errorMessage = 'Email sudah digunakan';
+                  } else if (e.code == 'weak-password') {
+                    errorMessage = 'Password terlalu lemah';
+                  }
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $errorMessage')),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -164,11 +179,19 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: 'Nama'),
+              decoration: const InputDecoration(
+                labelText: 'Nama',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
             ),
           ],
         ),
@@ -184,6 +207,7 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
                 await _databaseRef.child('users').child(farmer['id']).update({
                   'name': nameController.text,
                   'email': emailController.text,
+                  'displayName': nameController.text,
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -211,11 +235,21 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              await _databaseRef.child('users').child(farmer['id']).remove();
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Petani berhasil dihapus')),
-              );
+              try {
+                // Hapus user dari Firebase Auth (jika ingin)
+                // await FirebaseAuth.instance.currentUser?.delete();
+                
+                // Hapus data dari database
+                await _databaseRef.child('users').child(farmer['id']).remove();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Petani berhasil dihapus')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Hapus'),
@@ -227,61 +261,56 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDarkMode = theme.brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             //------------------------------------------------------------------
-            // HEADER FIGMA STYLE
+            // HEADER SIMPLE
             //------------------------------------------------------------------
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.arrow_back, size: 26),
-                  const SizedBox(width: 8),
-
-                  // TEXT TITLE
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          "Management User SmartFarm",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back,
+                            size: 22,
+                            color: Colors.black87,
                           ),
                         ),
-                        SizedBox(height: 3),
-                        Text(
-                          "Kelola data pengguna dan akses sistem SmartFarm.",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        )
-                      ],
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        "Management Petani",
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Kelola data petani dan akses sistem SmartFarm",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
                     ),
                   ),
-
-                  // NOTIFICATION ICON
-                  GestureDetector(
-                    onTap: _showNotifications,
-                    child: CircleAvatar(
-                      radius: 22,
-                      backgroundColor: const Color(0xFFE4EEC8),
-                      child: const Icon(
-                        Icons.notifications_active,
-                        color: Color(0xFF6E8036),
-                      ),
-                    ),
-                  )
                 ],
               ),
             ),
@@ -290,7 +319,7 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
             // SEARCH + TAMBAH PETANI
             //------------------------------------------------------------------
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Row(
                 children: [
                   // SEARCH BAR
@@ -298,16 +327,17 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: Colors.grey.shade300),
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: TextField(
                         controller: _searchController,
                         decoration: const InputDecoration(
-                          hintText: "Search",
-                          icon: Icon(Icons.search),
+                          hintText: "Cari nama atau email petani...",
+                          icon: Icon(Icons.search, color: Colors.grey),
                           border: InputBorder.none,
+                          hintStyle: TextStyle(fontSize: 14),
                         ),
                       ),
                     ),
@@ -320,14 +350,24 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFCC4B31),
                       padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 16),
+                          vertical: 14, horizontal: 18),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
+                      elevation: 0,
                     ),
-                    child: const Text(
-                      "Tambah Petani",
-                      style: TextStyle(fontSize: 13, color: Colors.white),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.add, size: 18, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text(
+                          "Tambah",
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.white),
+                        ),
+                      ],
                     ),
                   )
                 ],
@@ -338,22 +378,56 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
             // TABLE HEADER
             //------------------------------------------------------------------
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade300, width: 1),
+                  bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+              ),
               child: const Row(
                 children: [
                   Expanded(
-                      flex: 1,
-                      child: Text("No",
-                          style: TextStyle(fontWeight: FontWeight.bold))),
+                    flex: 1,
+                    child: Text(
+                      "No",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
                   Expanded(
-                      flex: 4,
-                      child: Text("Name",
-                          style: TextStyle(fontWeight: FontWeight.bold))),
+                    flex: 3,
+                    child: Text(
+                      "Nama",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
                   Expanded(
-                      flex: 2,
-                      child: Text("Action",
-                          style: TextStyle(fontWeight: FontWeight.bold))),
+                    flex: 3,
+                    child: Text(
+                      "Email",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      "Aksi",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -363,54 +437,139 @@ class _AdminFarmersScreenState extends State<AdminFarmersScreen> {
             //------------------------------------------------------------------
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF6E8036),
+                      ),
+                    )
                   : _filteredFarmers.isEmpty
-                      ? const Center(child: Text("Tidak ada data"))
-                      : ListView.builder(
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 60,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                "Belum ada petani terdaftar",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "Silakan tambah petani atau tunggu pendaftaran",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
                           itemCount: _filteredFarmers.length,
+                          separatorBuilder: (context, index) => Container(
+                            height: 1,
+                            color: Colors.grey.shade100,
+                          ),
                           itemBuilder: (context, index) {
                             final farmer = _filteredFarmers[index];
 
                             return Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                border: Border(
-                                  bottom: BorderSide(
-                                    color: Colors.grey.shade300,
-                                    width: 0.6,
-                                  ),
-                                ),
-                              ),
+                                  horizontal: 20, vertical: 16),
+                              color: Colors.white,
                               child: Row(
                                 children: [
                                   Expanded(
                                     flex: 1,
-                                    child: Text("${index + 1}",
-                                        style: const TextStyle(fontSize: 14)),
+                                    child: Text(
+                                      "${index + 1}",
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
                                   ),
                                   Expanded(
-                                    flex: 4,
+                                    flex: 3,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          farmer['name'],
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 3,
                                     child: Text(
-                                      farmer['name'],
-                                      style: const TextStyle(fontSize: 14),
+                                      farmer['email'],
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black54,
+                                      ),
                                     ),
                                   ),
                                   Expanded(
                                     flex: 2,
                                     child: Row(
                                       children: [
-                                        IconButton(
-                                          onPressed: () => _editFarmer(farmer),
-                                          icon: const Icon(Icons.edit,
-                                              color: Colors.green),
+                                        // EDIT BUTTON WITH GREEN BOX
+                                        GestureDetector(
+                                          onTap: () => _editFarmer(farmer),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green[50],
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.green.shade100,
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: const Icon(
+                                              Icons.edit,
+                                              size: 18,
+                                              color: Colors.green,
+                                            ),
+                                          ),
                                         ),
-                                        IconButton(
-                                          onPressed: () =>
-                                              _deleteFarmer(farmer),
-                                          icon: const Icon(Icons.delete,
-                                              color: Colors.red),
+                                        const SizedBox(width: 8),
+                                        // DELETE BUTTON WITH RED BOX
+                                        GestureDetector(
+                                          onTap: () => _deleteFarmer(farmer),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red[50],
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.red.shade100,
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: const Icon(
+                                              Icons.delete,
+                                              size: 18,
+                                              color: Colors.red,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),

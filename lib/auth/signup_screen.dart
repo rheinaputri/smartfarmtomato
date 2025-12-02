@@ -12,6 +12,7 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -52,12 +53,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         final ref = FirebaseDatabase.instance.ref("users/${user.uid}");
 
         await ref.set({
+          "name": _nameController.text.trim(),
           "email": user.email,
           "role": role,
           "createdAt": DateTime.now().millisecondsSinceEpoch,
           "lastLogin": DateTime.now().millisecondsSinceEpoch,
           "status": "active",
-          "displayName": user.email?.split("@").first ?? "User",
+          "displayName": _nameController.text.trim(),
         });
 
         _showSnack("🎉 Akun berhasil dibuat! Silakan login.", false);
@@ -145,6 +147,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
 
                   const SizedBox(height: 30),
+
+                  _buildTextField(
+                    controller: _nameController,
+                    hint: "Nama Lengkap",
+                    icon: Icons.person,
+                    validator: (v) =>
+                        v!.isEmpty ? "Nama tidak boleh kosong" : null,
+                  ),
+                  const SizedBox(height: 15),
 
                   _buildTextField(
                     controller: _emailController,

@@ -1046,7 +1046,7 @@ class _FarmerDashboardScreenState extends State<FarmerDashboardScreen> {
                   color: isDarkMode ? Colors.blue[200] : Colors.blue),
               const SizedBox(width: 8),
               Text(
-                '📈 Trend Data Sensor',
+                'Trend Data Sensor',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
