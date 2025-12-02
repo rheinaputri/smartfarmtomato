@@ -90,153 +90,80 @@ class _HistoryScreenState extends State<HistoryScreen> {
     });
   }
 
-  // PERBAIKAN: Fungsi parsing timestamp yang lebih baik
+  // PERBAIKAN FUNGSI PARSING TIMESTAMP
   int _parseTimestamp(Map<dynamic, dynamic> data, String key) {
-    print('🔍 Parsing timestamp for key: $key');
-    
     // 1. Coba dari timestamp field langsung (dalam milliseconds)
     if (data['timestamp'] != null) {
-      print('   📊 Raw timestamp value: ${data['timestamp']} (type: ${data['timestamp'].runtimeType})');
-      
       final ts = data['timestamp'];
       if (ts is int) {
-        print('   ✅ Using int timestamp: $ts');
-        
-        // PERBAIKAN: Validasi timestamp untuk tahun 2025
+        // PERBAIKAN: Jangan ubah tahun jika timestamp valid
         final date = DateTime.fromMillisecondsSinceEpoch(ts);
-        final year = date.year;
-        print('   📅 Date from timestamp: ${date.toString()} (Year: $year)');
-        
-        // Jika tahun kurang dari 2025, sesuaikan ke 2025
-        if (year < 2025) {
-          print('   ⚠ Year $year < 2025, adjusting to 2025');
-          // Tambahkan jumlah milidetik untuk mencapai tahun 2025
-          final newDate = DateTime(2025, date.month, date.day, date.hour, date.minute, date.second);
-          final adjustedTs = newDate.millisecondsSinceEpoch;
-          print('   🔄 Adjusted timestamp: $adjustedTs (Date: ${newDate.toString()})');
-          return adjustedTs;
+        // Cek apakah tanggal valid (setelah tahun 2020)
+        if (date.year > 2020) {
+          return ts;
         }
-        
-        return ts;
       }
       
       if (ts is String) {
         final parsed = int.tryParse(ts);
         if (parsed != null) {
-          print('   ✅ Using string timestamp: $parsed');
-          
-          // PERBAIKAN: Validasi timestamp untuk tahun 2025
           final date = DateTime.fromMillisecondsSinceEpoch(parsed);
-          final year = date.year;
-          print('   📅 Date from timestamp: ${date.toString()} (Year: $year)');
-          
-          // Jika tahun kurang dari 2025, sesuaikan ke 2025
-          if (year < 2025) {
-            print('   ⚠ Year $year < 2025, adjusting to 2025');
-            final newDate = DateTime(2025, date.month, date.day, date.hour, date.minute, date.second);
-            final adjustedTs = newDate.millisecondsSinceEpoch;
-            print('   🔄 Adjusted timestamp: $adjustedTs (Date: ${newDate.toString()})');
-            return adjustedTs;
+          if (date.year > 2020) {
+            return parsed;
           }
-          
-          return parsed;
         }
       }
     }
 
-    // 2. Coba dari datetime field (format ISO 8601 atau custom)
+    // 2. Coba dari datetime field
     if (data['datetime'] != null) {
       final dateString = data['datetime'].toString();
-      print('   📅 Parsing datetime: $dateString');
       
-      DateTime? dateTime;
+      DateTime? dateTime = DateTime.tryParse(dateString);
       
-      // Coba parse sebagai ISO 8601
-      dateTime = DateTime.tryParse(dateString);
-      
-      // Jika gagal, coba format custom: "2025-11-28 20:56:20"
-      if (dateTime == null && dateString.contains(' ') && dateString.contains('-') && dateString.contains(':')) {
-        try {
-          final parts = dateString.split(' ');
-          if (parts.length == 2) {
-            final dateParts = parts[0].split('-');
-            final timeParts = parts[1].split(':');
-            
-            if (dateParts.length == 3 && timeParts.length == 3) {
-              final year = int.tryParse(dateParts[0]) ?? 2025;
-              final month = int.tryParse(dateParts[1]) ?? 11;
-              final day = int.tryParse(dateParts[2]) ?? 28;
-              final hour = int.tryParse(timeParts[0]) ?? 0;
-              final minute = int.tryParse(timeParts[1]) ?? 0;
-              final second = int.tryParse(timeParts[2]) ?? 0;
-              
-              // PERBAIKAN: Pastikan tahun 2025
-              final adjustedYear = year < 2025 ? 2025 : year;
-              
-              dateTime = DateTime(adjustedYear, month, day, hour, minute, second);
-              print('   ✅ Parsed custom datetime: ${dateTime.toString()}');
-            }
-          }
-        } catch (e) {
-          print('   ❌ Error parsing custom datetime: $e');
-        }
-      }
-      
-      if (dateTime != null) {
-        print('   ✅ Using datetime: ${dateTime.toString()}');
+      if (dateTime != null && dateTime.year > 2020) {
         return dateTime.millisecondsSinceEpoch;
       }
     }
 
-    // 3. Parse dari key (format: data_1701116800000_12345)
-    final regex = RegExp(r'(\d{10,})');
-    final match = regex.firstMatch(key);
-    if (match != null) {
-      final millisStr = match.group(1)!;
-      print('   🔑 Parsing from key: $millisStr');
-      
-      int? millis = int.tryParse(millisStr);
-      if (millis != null) {
-        // Konversi detik ke milidetik jika perlu
-        if (millis < 100000000000) {
-          millis = millis * 1000;
-          print('   🔄 Converted seconds to milliseconds: $millis');
+    // 3. Parse dari key jika mengandung timestamp
+    try {
+      final parts = key.split('_');
+      for (var part in parts) {
+        if (part.length >= 10) {
+          final possibleTimestamp = int.tryParse(part);
+          if (possibleTimestamp != null) {
+            // Jika timestamp dalam detik (10 digit), konversi ke milidetik
+            if (possibleTimestamp < 10000000000) { // Kurang dari 10 digit
+              final milliseconds = possibleTimestamp * 1000;
+              final date = DateTime.fromMillisecondsSinceEpoch(milliseconds);
+              if (date.year > 2020) {
+                return milliseconds;
+              }
+            } else { // Jika sudah dalam milidetik (13 digit)
+              final date = DateTime.fromMillisecondsSinceEpoch(possibleTimestamp);
+              if (date.year > 2020) {
+                return possibleTimestamp;
+              }
+            }
+          }
         }
-        
-        // PERBAIKAN: Validasi tahun 2025
-        final date = DateTime.fromMillisecondsSinceEpoch(millis);
-        final year = date.year;
-        print('   📅 Date from key: ${date.toString()} (Year: $year)');
-        
-        // Jika tahun kurang dari 2025, sesuaikan ke 2025
-        if (year < 2025) {
-          print('   ⚠ Year $year < 2025, adjusting to 2025');
-          final newDate = DateTime(2025, date.month, date.day, date.hour, date.minute, date.second);
-          final adjustedMillis = newDate.millisecondsSinceEpoch;
-          print('   🔄 Adjusted timestamp: $adjustedMillis (Date: ${newDate.toString()})');
-          return adjustedMillis;
-        }
-        
-        return millis;
       }
+    } catch (e) {
+      print('Error parsing timestamp from key: $e');
     }
 
-    // 4. Fallback: Waktu sekarang dengan tahun 2025
-    print('   ⚠ No valid timestamp found, using current time adjusted to 2025');
+    // 4. Fallback: Gunakan waktu sekarang (jangan paksa tahun 2025)
     final now = DateTime.now();
-    final adjustedNow = DateTime(2025, now.month, now.day, now.hour, now.minute, now.second);
-    print('   🕒 Fallback to: ${adjustedNow.toString()}');
-    
-    return adjustedNow.millisecondsSinceEpoch;
+    print('⚠ Using current time for entry: $key');
+    return now.millisecondsSinceEpoch;
   }
 
   LogEntry _createLogEntry(String id, Map<dynamic, dynamic> data, int timestamp) {
-    print('📝 Creating log entry: $id, timestamp: $timestamp');
-    
-    // PERBAIKAN: Parse tanggal untuk display yang benar
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
-    final year = date.year;
-    print('   📅 Parsed date: ${date.toString()} (Year: $year)');
+    
+    // Debug: Tampilkan tanggal yang diparsing
+    print('📅 Created entry: ${date.toString()} for id: $id');
     
     return LogEntry(
       id: id,
@@ -252,7 +179,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       plantAge: data['umur_tanaman'] != null ? int.tryParse(data['umur_tanaman'].toString()) : 1,
       timeOfDay: data['waktu']?.toString(),
       datetime: data['datetime']?.toString(),
-      // PERBAIKAN: Tambahkan tanggal yang sudah diformat dengan benar
       formattedDate: DateFormat('yyyy-MM-dd HH:mm:ss').format(date),
     );
   }
@@ -296,7 +222,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
               const SizedBox(height: 8),
               
-              // Realtime Data Card - DIPERBAIKI
+              // Realtime Data Card
               if (_realtimeData != null) _buildRealtimeCard(),
               const SizedBox(height: 16),
 
@@ -334,13 +260,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildRealtimeCard() {
     final log = _realtimeData!;
-    // PERBAIKAN: Gunakan formattedDate jika ada, jika tidak parse dari timestamp
-    final displayDateTime = log.formattedDate ?? 
-        DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.fromMillisecondsSinceEpoch(log.timestamp));
-    
     final date = DateTime.fromMillisecondsSinceEpoch(log.timestamp);
     final timeFormat = DateFormat('HH:mm:ss');
-    final dateFormat = DateFormat('yyyy/MM/dd');
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -372,9 +293,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ),
               ),
-              // PERBAIKAN: Tampilkan tahun 2025 dengan jelas
               Text(
-                '2025/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}',
+                DateFormat('yyyy/MM/dd').format(date),
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 12,
@@ -382,21 +302,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          // PERBAIKAN: Tampilkan informasi seperti ESP32
+          const SizedBox(height: 8),
           Text(
             '🌱 Sistem Siap | ${log.plantStage} | Hari ke-${log.plantAge ?? 1}',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Waktu: $displayDateTime',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
+              fontSize: 13,
             ),
           ),
           const SizedBox(height: 12),
@@ -578,9 +489,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final date = DateTime.fromMillisecondsSinceEpoch(log.timestamp);
     final timeFormat = DateFormat('HH:mm:ss');
     
-    // PERBAIKAN: Gunakan formattedDate jika ada
-    final displayDate = log.formattedDate ?? DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
-    
     // Format untuk header
     final headerDateFormat = DateFormat('yyyy/MM/dd');
     final headerDate = headerDateFormat.format(date);
@@ -602,7 +510,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header dengan Mode dan waktu
+          // Header dengan Mode dan tanggal
           Row(
             children: [
               Container(
@@ -638,7 +546,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ],
               const Spacer(),
-              // PERBAIKAN: Tampilkan tanggal dengan tahun 2025
               Text(
                 headerDate,
                 style: TextStyle(
@@ -650,22 +557,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           const SizedBox(height: 8),
           
-          // PERBAIKAN: Tambahkan informasi tanaman dan waktu lengkap
-          if (log.plantStage != null)
-            Text(
-              '🌱 ${log.plantStage} | Hari ke-${log.plantAge ?? 1}',
-              style: TextStyle(
-                fontSize: 11,
-                color: _darkGreen,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          const SizedBox(height: 4),
           Text(
-            '📅 $displayDate',
+            '🌱 ${log.plantStage} | Hari ke-${log.plantAge ?? 1}',
             style: TextStyle(
-              fontSize: 10,
-              color: _gray,
+              fontSize: 12,
+              color: _darkGreen,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 12),
@@ -824,10 +721,10 @@ class LogEntry {
   final String operationMode;
   final String pumpStatus;
   final String plantStage;
-  final int? plantAge; // Tambahkan plantAge
+  final int? plantAge;
   final String? timeOfDay;
   final String? datetime;
-  final String? formattedDate; // PERBAIKAN: Tambahkan field untuk tanggal yang sudah diformat
+  final String? formattedDate;
 
   LogEntry({
     required this.id,

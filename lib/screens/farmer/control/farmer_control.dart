@@ -57,18 +57,6 @@ class _ControlScreenState extends State<ControlScreen> {
       backgroundColor: isDarkMode
           ? Theme.of(context).colorScheme.background
           : Colors.grey[100],
-      // appBar: AppBar(
-      //   backgroundColor: Colors.white,
-      //   elevation: 0,
-      //   leading: IconButton(
-      //     icon: const Icon(Icons.arrow_back, color: Colors.black),
-      //     onPressed: () => Navigator.pop(context),
-      //   ),
-      //   title: const Text(
-      //     'Kontrol Akuator',
-      //     style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-      //   ),
-      // ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -486,68 +474,106 @@ class _ControlScreenState extends State<ControlScreen> {
     );
   }
 
-  // Firebase Backend Logic
+  // Firebase Backend Logic - DIPERBAIKI untuk sinkronisasi dengan history
   void _toggleAutoMode() {
+    final newAutoMode = !isAutoMode;
+    final newPumpActive = newAutoMode;
+    final newLampActive = newAutoMode;
+    
     setState(() {
-      isAutoMode = !isAutoMode;
-      if (isAutoMode) {
-        // Aktifkan pompa dan lampu otomatis saat mode otomatis diaktifkan
-        isPumpActive = true;
-        isLampActive = true;
-      } else {
-        // Matikan pompa dan lampu saat mode manual diaktifkan
-        isPumpActive = false;
-        isLampActive = false;
-      }
+      isAutoMode = newAutoMode;
+      isPumpActive = newPumpActive;
+      isLampActive = newLampActive;
+      systemStatus['actuator'] = newAutoMode ? 'auto' : 'manual';
     });
 
-    // Update to Firebase
-    _databaseRef.child('control/autoMode').set(isAutoMode);
-    _databaseRef.child('control/pump').set(isPumpActive);
-    _databaseRef.child('control/light').set(isLampActive);
+    // Update to Firebase control
+    _databaseRef.child('control/autoMode').set(newAutoMode);
+    _databaseRef.child('control/pump').set(newPumpActive);
+    _databaseRef.child('control/light').set(newLampActive);
 
-    _logAction('Mode ${isAutoMode ? 'OTOMATIS' : 'MANUAL'} diaktifkan');
-    if (isAutoMode) {
+    // UPDATE PENTING: Sync ke current_data agar history bisa membaca status terkini
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    _databaseRef.child('current_data').update({
+      'mode_operasi': newAutoMode ? 'AUTO' : 'MANUAL',
+      'status_pompa': newPumpActive ? 'ON' : 'OFF',
+      'timestamp': timestamp,
+      'datetime': DateTime.now().toIso8601String(),
+    });
+
+    _logAction('Mode ${newAutoMode ? 'OTOMATIS' : 'MANUAL'} diaktifkan');
+    if (newAutoMode) {
       _logAction('Pompa Air dan Lampu Tubuh DIHIDUPKAN (Auto Mode)');
     } else {
       _logAction('Pompa Air dan Lampu Tubuh DIMATIKAN (Manual Mode)');
     }
 
     _showSnackbar(
-      isAutoMode
+      newAutoMode
           ? 'Mode Otomatis Diaktifkan - Pompa & Lampu Menyala'
           : 'Mode Manual Diaktifkan - Pompa & Lampu Mati',
-      isAutoMode ? Colors.green : Colors.orange,
+      newAutoMode ? Colors.green : Colors.orange,
     );
   }
 
   void _togglePump() {
+    final newPumpActive = !isPumpActive;
+    
     setState(() {
-      isPumpActive = !isPumpActive;
+      isPumpActive = newPumpActive;
+      // Saat pompa dikontrol manual, set mode ke MANUAL
+      isAutoMode = false;
+      systemStatus['actuator'] = 'manual';
     });
 
-    // Update to Firebase
-    _databaseRef.child('control/pump').set(isPumpActive);
-    _logAction('Pompa Air ${isPumpActive ? 'DIHIDUPKAN' : 'DIMATIKAN'}');
+    // Update to Firebase control
+    _databaseRef.child('control/pump').set(newPumpActive);
+    _databaseRef.child('control/autoMode').set(false); // Set autoMode ke false
+
+    // UPDATE PENTING: Sync ke current_data agar history bisa membaca status terkini
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    _databaseRef.child('current_data').update({
+      'status_pompa': newPumpActive ? 'ON' : 'OFF',
+      'mode_operasi': 'MANUAL',
+      'timestamp': timestamp,
+      'datetime': DateTime.now().toIso8601String(),
+    });
+
+    _logAction('Pompa Air ${newPumpActive ? 'DIHIDUPKAN' : 'DIMATIKAN'}');
 
     _showSnackbar(
-      isPumpActive ? 'Pompa Air Diaktifkan' : 'Pompa Air Dimatikan',
-      isPumpActive ? Colors.blue : Colors.grey,
+      newPumpActive ? 'Pompa Air Diaktifkan (Mode Manual)' : 'Pompa Air Dimatikan (Mode Manual)',
+      newPumpActive ? Colors.blue : Colors.grey,
     );
   }
 
   void _toggleLamp() {
+    final newLampActive = !isLampActive;
+    
     setState(() {
-      isLampActive = !isLampActive;
+      isLampActive = newLampActive;
+      // Saat lampu dikontrol manual, set mode ke MANUAL
+      isAutoMode = false;
+      systemStatus['actuator'] = 'manual';
     });
 
-    // Update to Firebase
-    _databaseRef.child('control/light').set(isLampActive);
-    _logAction('Lampu Tubuh ${isLampActive ? 'DIHIDUPKAN' : 'DIMATIKAN'}');
+    // Update to Firebase control
+    _databaseRef.child('control/light').set(newLampActive);
+    _databaseRef.child('control/autoMode').set(false); // Set autoMode ke false
+
+    // UPDATE PENTING: Sync ke current_data agar history bisa membaca status terkini
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    _databaseRef.child('current_data').update({
+      'mode_operasi': 'MANUAL',
+      'timestamp': timestamp,
+      'datetime': DateTime.now().toIso8601String(),
+    });
+
+    _logAction('Lampu Tubuh ${newLampActive ? 'DIHIDUPKAN' : 'DIMATIKAN'}');
 
     _showSnackbar(
-      isLampActive ? 'Lampu Tubuh Diaktifkan' : 'Lampu Tubuh Dimatikan',
-      isLampActive ? Colors.orange : Colors.grey,
+      newLampActive ? 'Lampu Tubuh Diaktifkan (Mode Manual)' : 'Lampu Tubuh Dimatikan (Mode Manual)',
+      newLampActive ? Colors.orange : Colors.grey,
     );
   }
 
@@ -574,7 +600,6 @@ class _ControlScreenState extends State<ControlScreen> {
 
   @override
   void dispose() {
-    // Clean up any listeners if needed
     super.dispose();
   }
 }
