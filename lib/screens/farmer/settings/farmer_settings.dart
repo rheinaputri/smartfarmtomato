@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../../../auth/home_screen.dart';
 import '../../../providers/theme_provider.dart';
 
@@ -15,8 +16,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   bool _notificationsEnabled = true;
   bool _autoRefreshEnabled = true;
+  String _userName = '';
 
   // Warna konsisten dengan dashboard dan history
   final Color _primaryColor = const Color(0xFF006B5D); // Warna utama
@@ -30,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
+    _loadUserName();
   }
 
   void _loadSettings() async {
@@ -38,6 +42,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _notificationsEnabled = prefs.getBool('notifications') ?? true;
       _autoRefreshEnabled = prefs.getBool('autoRefresh') ?? true;
     });
+  }
+
+  void _loadUserName() {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // Cek nama di Firebase Realtime Database
+      _databaseRef.child('users').child(user.uid).child('name').onValue.listen((event) {
+        final nameFromDB = event.snapshot.value;
+        if (nameFromDB != null && nameFromDB is String) {
+          setState(() {
+            _userName = nameFromDB;
+          });
+        } else {
+          // Jika tidak ada di database, ambil dari email
+          final email = user.email ?? '';
+          final nameFromEmail = email.split('@').first;
+          setState(() {
+            _userName = nameFromEmail.isNotEmpty 
+                ? nameFromEmail[0].toUpperCase() + nameFromEmail.substring(1)
+                : 'Petani';
+          });
+        }
+      });
+    }
   }
 
   void _toggleNotifications(bool value) async {
@@ -67,6 +95,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
+      ),
+    );
+  }
+
+  void _showEditNameDialog() {
+    final TextEditingController nameController = TextEditingController(text: _userName);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Icon(Icons.edit, color: _primaryColor),
+            const SizedBox(width: 8),
+            const Text(
+              'Edit Nama',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Nama',
+                hintText: 'Masukkan nama Anda',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: _primaryColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              autofocus: true,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nama akan ditampilkan di profil dan aplikasi',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isNotEmpty) {
+                final user = _auth.currentUser;
+                if (user != null) {
+                  try {
+                    // Simpan nama ke Firebase Realtime Database
+                    await _databaseRef.child('users').child(user.uid).update({
+                      'name': nameController.text.trim(),
+                    });
+
+                    setState(() {
+                      _userName = nameController.text.trim();
+                    });
+
+                    Navigator.pop(context);
+                    _showSnackBar('Nama berhasil diperbarui');
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Gagal memperbarui nama: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Nama tidak boleh kosong'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Simpan'),
+          ),
+        ],
       ),
     );
   }
@@ -153,11 +285,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              _buildFeatureItem('📊 Monitoring real-time sensor', isDarkMode),
-              _buildFeatureItem('💧 Kontrol otomatis pompa air', isDarkMode),
-              _buildFeatureItem('💡 Kontrol lampu tumbuh', isDarkMode),
-              _buildFeatureItem('📈 Riwayat data dan grafik', isDarkMode),
-              _buildFeatureItem('🔔 Notifikasi cerdas', isDarkMode),
+              _buildFeatureItem('📊 Monitoring real-time sensor', isDarkMode, context),
+              _buildFeatureItem('💧 Kontrol otomatis pompa air', isDarkMode, context),
+              _buildFeatureItem('💡 Kontrol lampu tumbuh', isDarkMode, context),
+              _buildFeatureItem('📈 Riwayat data dan grafik', isDarkMode, context),
+              _buildFeatureItem('🔔 Notifikasi cerdas', isDarkMode, context),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -211,7 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildFeatureItem(String text, bool isDarkMode) {
+  Widget _buildFeatureItem(String text, bool isDarkMode, BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -329,14 +461,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildAccountInfoItem('Nama', user?.displayName ?? 'Tidak diatur'),
+            _buildAccountInfoItem('Nama', _userName),
             _buildAccountInfoItem('Email', user?.email ?? 'Tidak tersedia'),
-            _buildAccountInfoItem(
-              'Status Email',
-              user?.emailVerified == true
-                  ? 'Terverifikasi'
-                  : 'Belum diverifikasi',
-            ),
             _buildAccountInfoItem(
               'Bergabung',
               user?.metadata.creationTime != null
@@ -430,15 +556,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            user?.displayName ??
-                                user?.email?.split('@').first ??
-                                'Pengguna TomaFarm',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _userName.isNotEmpty 
+                                      ? _userName 
+                                      : user?.email?.split('@').first ?? 'Petani TomaFarm',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _showEditNameDialog,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -455,16 +602,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: user?.emailVerified == true
-                                      ? Colors.white.withOpacity(0.3)
-                                      : _secondaryColor,
+                                  color: Colors.white.withOpacity(0.3),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(
-                                  user?.emailVerified == true
-                                      ? '✓ Email Terverifikasi'
-                                      : '! Verifikasi Email',
-                                  style: const TextStyle(
+                                child: const Text(
+                                  'Petani',
+                                  style: TextStyle(
                                     fontSize: 10,
                                     color: Colors.white,
                                     fontWeight: FontWeight.w500,
